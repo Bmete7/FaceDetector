@@ -141,6 +141,8 @@ class Window(QMainWindow):
     def readDatabase(self,DB_name,vectorize = False):
         # opencv reads image in the reversed shape, you can think
         # max_h as the image height
+        if(DB_name == ''):
+            return
         max_h = 0
         max_w = 0
         file_count = 0 
@@ -168,6 +170,8 @@ class Window(QMainWindow):
     
     def opticalFlowAction(self):
         self.importInput(0)
+        if(self.optic_DB == ''):
+            return
         X = self.readDatabase(self.optic_DB,vectorize = False)
         
         B = self.findBackgroundImage(X)
@@ -284,29 +288,30 @@ class Window(QMainWindow):
         return B
     def eigenFacesAction(self):
         self.importInput(1)
+        if(self.eigenfaces_DB == ''):
+            return
         X = self.readDatabase(self.eigenfaces_DB,vectorize = True)
-        avgIm = self.findAverageImage(X)
-        print(avgIm)
-        cv2.imwrite('../a.png' , avgIm)
+        avgIm = self.findAverageImage(X)        
         Z = self.createDifferenceImages(avgIm,X)
-        print(Z.shape)
+        
         #covariance = np.matmul(np.transpose(Z),Z)
         covariance = np.matmul(np.transpose(Z),Z)
-        print(covariance.shape)
+        
         # Z * Z.T and Z.T * Z has same eigenvalues for first N 
-        self.calculateEigen(covariance, Z)
-
+        eiv = self.calculateEigen(covariance, Z)
+        print(eiv.shape)
     def findAverageImage(self,X):
         # finds the mean of each pixel
         im,p = X.shape
-        print(X.shape)
         avgIm = np.zeros((p), dtype='int32')
-        
         for j in range(p):
             for i in range(im):
                 avgIm[j] +=X[i,j]
             if(im != 0 ):
                 avgIm[j] = avgIm[j] / im
+        avg = np.zeros((p), dtype='uint8')
+        for i in range(p):
+            avg[i] = avgIm[i]
         return avgIm
     
     def createDifferenceImages(self,avgIm,X):
@@ -320,22 +325,37 @@ class Window(QMainWindow):
     
     def calculateEigen(self,cov,A):
         # cov = A.T  * A  --- 32x32 matrix
-        
         # C = A * A.T --- NXN matrix
+        N,m = A.shape
+        print(A.shape)
         start = timeit.default_timer()
         #C = np.matmul(A,A.T)
-        eig,eiv = np.linalg.eig(cov)        
-        eiv = eiv.T
-        print(eiv)
+        smallEig,smallEiv = np.linalg.eig(cov)        
+        smallEiv = smallEiv.T
+        # do we need to sort the eigenvalues? take a look
+        order = smallEig.argsort()[::-1]
+        smallEig = smallEig[order]
+        smallEiv = smallEiv[order]
         
-
+        print("Eigenvalues")
+        print(smallEig)
         
+        
+        eiv = np.zeros((5,N), dtype= 'float64')
+        for i in range(5):
+            eiv[i] = np.matmul(A,smallEiv[i])
+            nrm = np.linalg.norm(eiv[i])
+            if(nrm> 0):
+                eiv[i] /= nrm
+       
         stop = timeit.default_timer()
 
         print('Time: ', stop - start)  
+        return eiv
 
 if __name__ == '__main__':
     App = QApplication(sys.argv)
     window = Window()
     cv2.destroyAllWindows()
     sys.exit(App.exec())
+
