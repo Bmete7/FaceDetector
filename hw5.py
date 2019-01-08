@@ -79,7 +79,8 @@ class Window(QMainWindow):
         self.left = 200
         self.width = 500
         self.height = 500
-
+        self.image_h = 0
+        self.image_w = 0
         self.eigenfaces_DB = ''
         self.optic_DB = ''
         
@@ -136,6 +137,7 @@ class Window(QMainWindow):
         else:
             print('Error encountered while selecting the DB')
     def vectorize(self,X,i,arr,h,w):
+        
         X[i,:] = np.array(arr).reshape(h*w)
         return X
     def readDatabase(self,DB_name,vectorize = False):
@@ -153,6 +155,8 @@ class Window(QMainWindow):
             max_h = max(im.shape[0],max_h)
             max_w = max(im.shape[1],max_w)
             
+        self.image_h = max_h
+        self.image_w = max_w
         #first = cv2.imread(self.eigenfaces_DB + '/HR_11.tif')
         if(vectorize):
             X  = np.zeros((file_count,max_h*max_w), dtype = 'uint8')
@@ -184,27 +188,20 @@ class Window(QMainWindow):
             start = timeit.default_timer()
             for m in range(0,5):
                 for n in range(0,3):
-                    
                     for ii in range(0,50):
                         i = (50*n) + ii
                         for jj in range(0,50):
-                            
-                            
                             j = (50*m) + jj
-                            
-                            
-                            
                             Ix,Iy,It = self.calculateGradient(X,i,j,t)
                             A[((ii-1) * (jj-1)) + jj -1] = [Ix,Iy]
                             b[((ii-1) * (jj-1)) + jj -1] = It
-                                                    
-                    velocities = np.matmul((-1 * np.linalg.inv(np.matmul(A.T,A))), np.matmul(A.T,b))
-                    if (t == 38):
-                        vel[m,n,0] = velocities[0,0]
-                        vel[m,n,1] = velocities[1,0]
-                            
+                    velocities = np.matmul((-1 * np.linalg.inv(np.matmul(A.T,A))), np.matmul(A.T,b))                
+                    vel[m,n,0] = velocities[0,0]
+                    vel[m,n,1] = velocities[1,0]
+                    self.drawArrows(X[t,:,:],vel)                    
             stop = timeit.default_timer()
-        self.drawArrows(X[38,:,:],vel)
+            print('Optical flowTime: ', stop - start)  
+        
             #print('Time: ', stop - start) 
             #print(velocities)
     def drawArrows(self,im,vel):
@@ -220,10 +217,10 @@ class Window(QMainWindow):
         minHVel = 50
         for i in range(5):
             for j in range(3):
-                maxHVel = max(maxHVel, vel[i,j,1])
-                maxVVel = max(maxVVel, vel[i,j,0])
-                minHVel = min(minHVel, vel[i,j,1])
-                minVVel = min(minVVel, vel[i,j,0])
+                maxHVel = max(maxHVel, abs(vel[i,j,1]))
+                maxVVel = max(maxVVel, abs(vel[i,j,0]))
+                minHVel = min(minHVel, abs(vel[i,j,1]))
+                minVVel = min(minVVel, abs(vel[i,j,0]))
         
         if(maxHVel-minHVel != 0):
             hVel = int(25/(maxHVel-minHVel))
@@ -233,37 +230,30 @@ class Window(QMainWindow):
             
         
         
-        print("Max H Velocity " + str(maxHVel))
-        print("Max V Velocity " + str(maxVVel))
-        
-        print("Min H Velocity " + str(minHVel))
-        print("Min V Velocity " + str(minVVel))    
-        
-        print("h interval " + str(hVel))
-        print("v interval " + str(vVel))
+#        print("Max H Velocity " + str(maxHVel))
+#        print("Max V Velocity " + str(maxVVel))
+#        
+#        print("Min H Velocity " + str(minHVel))
+#        print("Min V Velocity " + str(minVVel))    
+#        
+#        print("h interval " + str(hVel))
+#        print("v interval " + str(vVel))
         for i in range(5):
             for j in range(3):
-                print(str(i * 50)+ " " +str(j * 50)+  " v velocity " + str(vel[i,j,0]))
-                print(str(i * 50) +" " + str(j * 50)+ " h velocity " + str(vel[i,j,1]))
+                
+                
                 p1 = (0,0)
                 p2 = (0,0)
-                y1 = int((i*50)+25 + (vVel * (vel[i,j,0]- minVVel)))
-                y2 = int((i*50)+25 - (vVel * (vel[i,j,0]- minVVel)))
-                x1 = int((j*50)+25 + (hVel * (vel[i,j,1]- minHVel)))
-                x2 = int((j*50)+25 - (hVel * (vel[i,j,1]- minHVel)))
-                if(vel[i,j,1] > 0 and vel[i,j,0] > 0):
-                    p1 = (y2,x2)
-                    p2 = (y1,x1)
-                elif(vel[i,j,1] <= 0 and vel[i,j,0] > 0):
-                    p1 = (y1,x2)
-                    p2 = (y2,x1)
-                elif(vel[i,j,1] > 0 and vel[i,j,0] <= 0):
-                    p1 = (y2,x1)
-                    p2 = (y1,x2)
-                else:
-                    p1 = (y1,x1)
-                    p2 = (y2,x2)
+                y1 = int((i*50)+25 + (hVel * (vel[i,j,1]- minHVel)))
+                y2 = int((i*50)+25 - (hVel * (vel[i,j,1]- minHVel)))
+                x1 = int((j*50)+25 + (vVel * (vel[i,j,0]- minVVel)))
+                x2 = int((j*50)+25 - (vVel * (vel[i,j,0]- minVVel)))
+
+                p1 = (y2,x2)
+                p2 = (y1,x1)
                 cv2.arrowedLine(arrowedIm,p1,p2,(0,255,0) ,1)
+        cv2.imshow("OpticalFlow" , arrowedIm)
+        cv2.waitKey(30)
                 
         cv2.imwrite('../arrowed.png',arrowedIm )
     def calculateGradient(self,X,i,j,t):
@@ -299,7 +289,58 @@ class Window(QMainWindow):
         
         # Z * Z.T and Z.T * Z has same eigenvalues for first N 
         eiv = self.calculateEigen(covariance, Z)
-        print(eiv.shape)
+        self.calculateWeights(Z,eiv)
+        #self.createEigenFaces(Z,eiv)
+    
+    def calculateWeights(self,Z,eiv):
+        X,m = Z.shape
+        k= eiv.shape[0]
+        w = np.zeros((m,k) , dtype='float64')
+
+        
+        for i in range(m):
+            for j in range(k):
+                w[i,j] = np.matmul(eiv[j].T, Z.T[i])
+        face_1_float = np.zeros((X), dtype='float64')
+        
+        print(w[0])
+        
+        for i in range(k):
+            face_1_float += (w[0,i]* eiv[i])
+        #face_1_float += np.matmul(w[0], eiv)
+            
+            
+            
+        print(face_1_float)
+        print('MAX = ' + str(max(face_1_float)))
+        print('MIN = ' + str(min(face_1_float)))
+        face_1_float -= min(face_1_float)
+ 
+        face_1_float /= (max(face_1_float))
+        face_1_float *= 256
+        print('MAX = ' + str(max(face_1_float)))
+        print('MIN = ' + str(min(face_1_float)))
+        print(face_1_float[500:510])
+        print(Z[500:510,0])
+  
+                
+            
+    def createEigenFaces(self,Z,eiv):
+        difFaces = Z.T
+        k,pix = eiv.shape
+        N,p = difFaces.shape
+        
+        
+        N = 1 # change laterrr
+        res = np.zeros((N,pix), dtype='float64')
+        for i in range(N):
+            for j in range(k):
+                print(res.shape)
+                print(((np.matmul((eiv[j].reshape(1,pix)),(difFaces[i]).reshape(pix,1))) * eiv[j]).shape)
+                res[i] += ((np.matmul((eiv[j].reshape(1,pix)),(difFaces[i]).reshape(pix,1))) * eiv[j])
+#            res += (np.matmul((eiv[j].reshape(1,pix)),(difFaces[i]).reshape(pix,1)) * eiv[j].reshape(pix,1))
+        print(res)
+        
     def findAverageImage(self,X):
         # finds the mean of each pixel
         im,p = X.shape
@@ -327,7 +368,6 @@ class Window(QMainWindow):
         # cov = A.T  * A  --- 32x32 matrix
         # C = A * A.T --- NXN matrix
         N,m = A.shape
-        print(A.shape)
         start = timeit.default_timer()
         #C = np.matmul(A,A.T)
         smallEig,smallEiv = np.linalg.eig(cov)        
