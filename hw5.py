@@ -54,8 +54,8 @@ class ExampleContent(QWidget):
 
         self.setLayout(hBox)
         self.setGeometry(0, 0, 0,0)
-        
-        self.InputImage(fileName1)
+        if fileName1 != '':
+            self.InputImage(fileName1)
         if fileName2 != '':
             self.ResultImage(fileName2)    
                 
@@ -198,13 +198,13 @@ class Window(QMainWindow):
                     velocities = np.matmul((-1 * np.linalg.inv(np.matmul(A.T,A))), np.matmul(A.T,b))                
                     vel[m,n,0] = velocities[0,0]
                     vel[m,n,1] = velocities[1,0]
-                    self.drawArrows(X[t,:,:],vel)                    
+                    self.drawArrows(X[t,:,:],vel,t)                    
             stop = timeit.default_timer()
             print('Optical flowTime: ', stop - start)  
         
             #print('Time: ', stop - start) 
             #print(velocities)
-    def drawArrows(self,im,vel):
+    def drawArrows(self,im,vel,t):
         h,w = im.shape
         arrowedIm = np.zeros((h,w,3), dtype = 'uint8')
         arrowedIm[:,:,0] = im
@@ -240,8 +240,6 @@ class Window(QMainWindow):
 #        print("v interval " + str(vVel))
         for i in range(5):
             for j in range(3):
-                
-                
                 p1 = (0,0)
                 p2 = (0,0)
                 y1 = int((i*50)+25 + (hVel * (vel[i,j,1]- minHVel)))
@@ -252,14 +250,15 @@ class Window(QMainWindow):
                 p1 = (y2,x2)
                 p2 = (y1,x1)
                 cv2.arrowedLine(arrowedIm,p1,p2,(0,255,0) ,1)
+        if ( t == 5):
+            cv2.imwrite('../arrowed.png',arrowedIm )
+            self.content = ExampleContent(self, '','../arrowed.png')
+            self.setCentralWidget(self.content)
         cv2.imshow("OpticalFlow" , arrowedIm)
         cv2.waitKey(30)
                 
-        cv2.imwrite('../arrowed.png',arrowedIm )
-    def calculateGradient(self,X,i,j,t):
-#        Ix = ((X[t,i+1,j] + X[t+1,i+1,j] + X[t,i+1,j+1] + X[t+1,i+1,j+1]) - (X[t,i,j] + X[t+1,i,j] + X[t,i,j+1] + X[t+1,i,j+1]))/4
-#        Iy = ((X[t,i,j+1] + X[t+1,i,j+1] + X[t,i+1,j+1] + X[t+1,i+1,j+1]) - (X[t,i,j] + X[t+1,i,j] + X[t,i+1,j] + X[t+1,i+1,j]))/4
-#        It = ((X[t+1,i,j] + X[t+1,i,j+1] + X[t+1,i+1,j] + X[t+1,i+1,j+1]) - (X[t,i,j] + X[t,i+1,j] + X[t,i,j+1] + X[t,i+1,j+1]))/4
+        
+    def calculateGradient(self,X,i,j,t):    
         Ix = (( int(X[t,i+1,j]) + int(X[t+1,i+1,j]) + int(X[t,i+1,j+1]) + int(X[t+1,i+1,j+1])) - (int(X[t,i,j]) + int(X[t+1,i,j]) + int(X[t,i,j+1]) + int(X[t+1,i,j+1])))/4
         Iy = ((int(X[t,i,j+1]) + int(X[t+1,i,j+1]) + int(X[t,i+1,j+1]) + int(X[t+1,i+1,j+1])) - (int(X[t,i,j]) + int(X[t+1,i,j]) + int(X[t,i+1,j]) + int(X[t+1,i+1,j])))/4
         It = ((int(X[t+1,i,j]) + int(X[t+1,i,j+1]) + int(X[t+1,i+1,j]) + int(X[t+1,i+1,j+1])) - (int(X[t,i,j]) + int(X[t,i+1,j]) + int(X[t,i,j+1]) + int(X[t,i+1,j+1])))/4
@@ -302,26 +301,40 @@ class Window(QMainWindow):
             for j in range(k):
                 w[i,j] = np.matmul(eiv[j].T, Z.T[i])
         face_1_float = np.zeros((X), dtype='float64')
+        face_1 = np.zeros((X), dtype='uint8')
         
-        print(w[0])
         
-        for i in range(k):
-            face_1_float += (w[0,i]* eiv[i])
-        #face_1_float += np.matmul(w[0], eiv)
-            
-            
-            
-        print(face_1_float)
-        print('MAX = ' + str(max(face_1_float)))
-        print('MIN = ' + str(min(face_1_float)))
-        face_1_float -= min(face_1_float)
- 
-        face_1_float /= (max(face_1_float))
-        face_1_float *= 256
-        print('MAX = ' + str(max(face_1_float)))
-        print('MIN = ' + str(min(face_1_float)))
-        print(face_1_float[500:510])
-        print(Z[500:510,0])
+        for j in range(k):
+            face_1_float += np.matmul(eiv[j].T, Z.T[1])* eiv[j]
+            print(face_1_float)
+        for i in range(X):
+            if(face_1_float[i] >= 255):
+                face_1[i] = 255
+            elif(face_1_float[i] <= 0):
+                face_1[i] = 0
+            else:
+                face_1[i] = int(face_1_float[i])
+        face_1 = face_1.reshape(self.image_h,self.image_w)
+        cv2.imwrite('../eigenface2.png', face_1)
+#        print(w[0])
+#        
+#        for i in range(k):
+#            face_1_float += (w[0,i]* eiv[i])
+#        #face_1_float += np.matmul(w[0], eiv)
+#            
+#            
+#            
+#        print(face_1_float)
+#        print('MAX = ' + str(max(face_1_float)))
+#        print('MIN = ' + str(min(face_1_float)))
+#        face_1_float -= min(face_1_float)
+# 
+#        face_1_float /= (max(face_1_float))
+#        face_1_float *= 256
+#        print('MAX = ' + str(max(face_1_float)))
+#        print('MIN = ' + str(min(face_1_float)))
+#        print(face_1_float[500:510])
+#        print(Z[500:510,0])
   
                 
             
